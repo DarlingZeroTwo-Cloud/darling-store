@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'appimage_source.dart';
 import 'apt_source.dart';
 import 'source.dart';
 import 'source_manager.dart';
@@ -29,6 +31,49 @@ class InstallState extends ChangeNotifier {
   bool get active => items.any((i) => i.stage == InstallStage.downloading || i.stage == InstallStage.installing || i.stage == InstallStage.queued);
   int get doneCount => items.where((i) => i.stage == InstallStage.done).length;
   int get total => items.length;
+
+  /// 本地导入：按后缀路由（deb→dpkg / appimage→注册 / flatpak→bundle）
+  Future<QueueItem> importLocal(String path) async {
+    final name = path.split('/').last;
+    final item = QueueItem(AppEntry(id: name, source: 'local', name: name, summary: '本地导入', category: '本地导入'), stage: InstallStage.queued);
+    items.add(item);
+    notifyListeners();
+    if (path.endsWith('.AppImage') || path.endsWith('.appimage')) {
+      item.stage = InstallStage.installing;
+      item.detail = '注册 AppImage';
+      notifyListeners();
+      final app = await AppImageSource().importLocal(path);
+      item.stage = app != null ? InstallStage.done : InstallStage.failed;
+      item.detail = app != null ? '已导入' : '导入失败';
+      notifyListeners();
+      return item;
+    }
+    if (path.endsWith('.deb')) {
+      item.stage = InstallStage.installing;
+      item.detail = 'dpkg 安装（需授权）';
+      notifyListeners();
+      final r = await Process.run('pkexec', ['dpkg', '-i', path]);
+      item.stage = r.exitCode == 0 ? InstallStage.done : InstallStage.failed;
+      item.detail = r.exitCode == 0 ? '已完成' : '安装失败';
+      notifyListeners();
+      return item;
+    }
+    if (path.endsWith('.flatpak') || path.endsWith('.flatpakref')) {
+      item.stage = InstallStage.installing;
+      item.detail = 'flatpak bundle 安装';
+      notifyListeners();
+      var r = await Process.run('flatpak', ['install', '-y', path]);
+      if (r.exitCode != 0) r = await Process.run('flatpak', ['--user', 'install', '-y', path]);
+      item.stage = r.exitCode == 0 ? InstallStage.done : InstallStage.failed;
+      item.detail = r.exitCode == 0 ? '已完成' : '安装失败';
+      notifyListeners();
+      return item;
+    }
+    item.stage = InstallStage.failed;
+    item.detail = '不支持的文件格式';
+    notifyListeners();
+    return item;
+  }
 
   /// 加入队列：下载阶段（伪进度推进）→ 串行安装
   Future<void> enqueue(AppEntry app, {int maxParallel = 3}) async {

@@ -3,6 +3,7 @@ import '../core/install_manager.dart';
 import '../core/source.dart';
 import '../core/source_manager.dart';
 import '../data/mock_data.dart';
+import 'package:file_selector/file_selector.dart';
 import '../widgets/app_card.dart';
 import '../widgets/entry_card.dart';
 
@@ -27,6 +28,17 @@ class _HomePageState extends State<HomePage> {
 
   void _reload() {
     setState(() => _future = SourceManager.instance.searchAll(_kw));
+  }
+
+  Future<void> _importLocal() async {
+    const groups = <XTypeGroup>[
+      XTypeGroup(label: '应用安装包', extensions: ['deb', 'AppImage', 'appimage', 'flatpak', 'flatpakref']),
+    ];
+    final file = await openFile(acceptedTypeGroups: groups);
+    if (file == null) return;
+    await widget.installs.importLocal(file.path);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('已导入：${file.path.split('/').last}，可在「正在安装」查看进度')));
   }
 
   List<StoreApp> get _mockList => kMockApps.where((a) =>
@@ -60,7 +72,7 @@ class _HomePageState extends State<HomePage> {
             )),
             const SizedBox(width: 10),
             FilledButton.tonalIcon(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('导入本地应用（deb / appimage / flatpak…）'))),
+              onPressed: _importLocal,
               icon: const Icon(Icons.file_open_rounded, size: 18),
               label: const Text('导入'),
             ),

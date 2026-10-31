@@ -1,13 +1,18 @@
 import 'dart:io';
+import 'appimage_source.dart';
 import 'apt_source.dart';
 import 'flatpak_source.dart';
 import 'source.dart';
+import 'spark_linglong_source.dart';
 
 /// 聚合源管理器：多源搜索/列表/已装/刷新
 class SourceManager {
   final List<SourceAdapter> sources = [
     AptSource(),
     FlatpakSource(),
+    SparkSource(),
+    LinglongSource(),
+    AppImageSource(),
   ];
 
   static final SourceManager instance = SourceManager();
