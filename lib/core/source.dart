@@ -80,11 +80,18 @@ class JsonCache {
   }
 }
 
-/// 运行命令（不抛异常，返回 stdout 或空串）
-Future<String> runCmd(String cmd, List<String> args) async {
+/// 运行命令（不抛异常，返回 stdout 或空串；自带超时，超时杀进程）
+Future<String> runCmd(String cmd, List<String> args, {Duration timeout = const Duration(seconds: 25)}) async {
   try {
-    final r = await Process.run(cmd, args);
-    if (r.exitCode == 0) return (r.stdout as String).trim();
+    final p = await Process.start(cmd, args);
+    final outF = p.stdout.transform(utf8.decoder).join();
+    final errF = p.stderr.transform(utf8.decoder).join();
+    final code = await p.exitCode.timeout(timeout, onTimeout: () {
+      p.kill();
+      return -1;
+    });
+    if (code == 0) return (await outF).trim();
+    await errF;
   } catch (_) {}
   return '';
 }

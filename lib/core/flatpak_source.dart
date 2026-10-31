@@ -12,8 +12,11 @@ class FlatpakSource implements SourceAdapter {
 
   final _cache = JsonCache('flathub');
 
-  Future<List<String>> _remotes() async {
-    final out = await runCmd('flatpak', ['remotes', '--columns=name']);
+  /// 系统级失败自动回退用户级（容器/无 root 场景）
+  Future<List<String>> _remotes({bool user = false}) async {
+    final args = user ? ['--user', 'remotes', '--columns=name'] : ['remotes', '--columns=name'];
+    final out = await runCmd('flatpak', args);
+    if (out.isEmpty && !user) return _remotes(user: true);
     return out.split('\n').where((l) => l.trim().isNotEmpty).toList();
   }
 
@@ -24,7 +27,8 @@ class FlatpakSource implements SourceAdapter {
     final remotes = await _remotes();
     final apps = <AppEntry>[];
     for (final remote in remotes) {
-      final out = await runCmd('flatpak', ['remote-ls', remote, '--columns=application,version,name,description,size']);
+      var out = await runCmd('flatpak', ['remote-ls', remote, '--columns=application,version,name,description']);
+      if (out.isEmpty) out = await runCmd('flatpak', ['--user', 'remote-ls', remote, '--columns=application,version,name,description']);
       for (final line in out.split('\n')) {
         final parts = line.split('\t');
         if (parts.length < 2 || !parts[0].contains('.')) continue;
@@ -63,21 +67,14 @@ class FlatpakSource implements SourceAdapter {
 
   @override
   Future<List<AppEntry>> search(String query) async {
-    if (query.trim().isEmpty) return listApps();
-    final out = await runCmd('flatpak', ['search', query]);
-    final apps = <AppEntry>[];
-    for (final line in out.split('\n')) {
-      final parts = line.split('\t');
-      if (parts.length < 2) continue;
-      apps.add(AppEntry(
-        id: parts[0], source: id,
-        name: parts.length > 2 && parts[2].isNotEmpty ? parts[2] : parts[0],
-        summary: parts.length > 3 ? parts[3] : '',
-        version: parts.length > 1 ? parts[1] : '',
-        category: _catOf(parts[0]),
-      ));
-    }
-    return apps;
+    // 走缓存快照本地过滤（秒回），避免远程 appstream 首次拉取超时
+    final all = await listApps();
+    if (query.trim().isEmpty) return all;
+    final q = query.toLowerCase();
+    return all.where((a) =>
+        a.name.toLowerCase().contains(q) ||
+        a.id.toLowerCase().contains(q) ||
+        a.summary.toLowerCase().contains(q)).toList();
   }
 
   @override
@@ -94,7 +91,8 @@ class FlatpakSource implements SourceAdapter {
     onStage?.call('准备运行时');
     // flatpak 用户级安装，无需 root
     onStage?.call('下载并安装');
-    final r = await Process.run('flatpak', ['install', '-y', 'flathub', app.id]);
+    var r = await Process.run('flatpak', ['install', '-y', 'flathub', app.id]);
+    if (r.exitCode != 0) r = await Process.run('flatpak', ['--user', 'install', '-y', 'flathub', app.id]);
     onStage?.call(r.exitCode == 0 ? '完成' : '失败');
     return r.exitCode == 0;
   }
