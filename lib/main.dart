@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/install_manager.dart';
 import 'core/settings.dart';
 import 'core/theme.dart';
 import 'core/window_shell.dart';
@@ -51,17 +52,16 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
-  // 正在安装角标：队列非空时显示（后续由安装管理器驱动）
-  final bool _installing = true;
+  final InstallState _installs = InstallState();
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final pages = [
-      const HomePage(),
+      HomePage(installs: _installs),
       const CategoriesPage(),
       const InstalledPage(),
-      const InstallQueuePage(),
+      InstallQueuePage(installs: _installs),
       const UpdatesPage(),
       SourcesPage(settings: widget.settings),
       SettingsPage(settings: widget.settings),
@@ -71,23 +71,26 @@ class _MainShellState extends State<MainShell> {
         const TitleBar(title: 'Darling Store'),
         Expanded(
           child: Row(children: [
-            NavigationRail(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: [
-                const NavigationRailDestination(icon: Icon(Icons.home_rounded), label: Text('首页')),
-                const NavigationRailDestination(icon: Icon(Icons.grid_view_rounded), label: Text('分类')),
-                const NavigationRailDestination(icon: Icon(Icons.check_circle_outline_rounded), selectedIcon: Icon(Icons.check_circle_rounded), label: Text('已安装')),
-                NavigationRailDestination(
-                  icon: _installing
-                      ? const Badge(smallSize: 8, child: Icon(Icons.downloading_rounded))
-                      : const Icon(Icons.downloading_rounded),
-                  label: const Text('正在安装'),
-                ),
-                const NavigationRailDestination(icon: Icon(Icons.system_update_rounded), label: Text('更新')),
-                const NavigationRailDestination(icon: Icon(Icons.storage_rounded), label: Text('源管理')),
-                const NavigationRailDestination(icon: Icon(Icons.settings_rounded), label: Text('设置')),
-              ],
+            ListenableBuilder(
+              listenable: _installs,
+              builder: (ctx, _) => NavigationRail(
+                selectedIndex: _index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+                destinations: [
+                  const NavigationRailDestination(icon: Icon(Icons.home_rounded), label: Text('首页')),
+                  const NavigationRailDestination(icon: Icon(Icons.grid_view_rounded), label: Text('分类')),
+                  const NavigationRailDestination(icon: Icon(Icons.check_circle_outline_rounded), selectedIcon: Icon(Icons.check_circle_rounded), label: Text('已安装')),
+                  NavigationRailDestination(
+                    icon: _installs.active
+                        ? const Badge(smallSize: 8, child: Icon(Icons.downloading_rounded))
+                        : const Icon(Icons.downloading_rounded),
+                    label: const Text('正在安装'),
+                  ),
+                  const NavigationRailDestination(icon: Icon(Icons.system_update_rounded), label: Text('更新')),
+                  const NavigationRailDestination(icon: Icon(Icons.storage_rounded), label: Text('源管理')),
+                  const NavigationRailDestination(icon: Icon(Icons.settings_rounded), label: Text('设置')),
+                ],
+              ),
             ),
             VerticalDivider(width: 1, color: scheme.outlineVariant.withValues(alpha: .4)),
             Expanded(child: IndexedStack(index: _index, children: pages)),
