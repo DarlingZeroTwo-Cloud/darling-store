@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/install_manager.dart';
 import '../core/source.dart';
 import '../core/source_manager.dart';
+import '../core/zh_index.dart';
 import '../data/mock_data.dart';
 import 'package:file_selector/file_selector.dart';
 import '../widgets/app_card.dart';
@@ -23,11 +24,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _future = SourceManager.instance.searchAll('');
+    _future = SourceManager.instance.searchAll(['']);
   }
 
   void _reload() {
-    setState(() => _future = SourceManager.instance.searchAll(_kw));
+    setState(() => _future = SourceManager.instance.searchAll(ZhIndex.expand(_kw)));
   }
 
   Future<void> _importLocal() async {

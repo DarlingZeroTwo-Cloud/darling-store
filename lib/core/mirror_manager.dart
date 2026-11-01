@@ -52,7 +52,9 @@ class MirrorManager {
   Future<double> _speed(MirrorEntry m) async {
     final sw = Stopwatch()..start();
     try {
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 4)
+        ..findProxy = (uri) => 'DIRECT';
       final req = await client.getUrl(Uri.parse('${m.url}/')).timeout(const Duration(seconds: 6));
       req.headers.set('Range', 'bytes=0-255');
       final resp = await req.close().timeout(const Duration(seconds: 6));

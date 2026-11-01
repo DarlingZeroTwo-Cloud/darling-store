@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'distro.dart';
 
 /// 主题模式
 enum ThemeModeChoice { system, light, dark }
@@ -33,13 +34,22 @@ class SettingsController extends ChangeNotifier {
   bool notifyOnDone = true;
   String appImageDir = '~/Downloads/AppImage';
 
-  final List<SourceInfo> sources = [
-    SourceInfo(id: 'apt', name: 'APT 官方源', icon: '🟧', mirror: '清华镜像'),
-    SourceInfo(id: 'flathub', name: 'Flatpak / Flathub', icon: '🟦', mirror: '中科大镜像'),
-    SourceInfo(id: 'spark', name: '星火应用商店', icon: '🔥', mirror: '原生国内'),
-    SourceInfo(id: 'linglong', name: '玲珑应用商店', icon: '💎', mirror: '原生国内', available: false),
-    SourceInfo(id: 'appimage', name: 'AppImage 目录', icon: '🖼️', mirror: 'GitHub 镜像'),
-  ];
+  /// 按发行版生成（Arch→pacman，Debian 系→apt）
+  final List<SourceInfo> sources = Distro.instance.isArch
+      ? [
+          SourceInfo(id: 'pacman', name: 'Arch 官方源', icon: '🔷', mirror: '国内镜像'),
+          SourceInfo(id: 'flathub', name: 'Flatpak / Flathub', icon: '🟦', mirror: '中科大镜像'),
+          SourceInfo(id: 'spark', name: '星火应用商店', icon: '🔥', mirror: '原生国内'),
+          SourceInfo(id: 'linglong', name: '玲珑应用商店', icon: '💎', mirror: '原生国内', available: false),
+          SourceInfo(id: 'appimage', name: 'AppImage 目录', icon: '🖼️', mirror: 'GitHub 镜像'),
+        ]
+      : [
+          SourceInfo(id: 'apt', name: 'APT 官方源', icon: '🟧', mirror: '清华镜像'),
+          SourceInfo(id: 'flathub', name: 'Flatpak / Flathub', icon: '🟦', mirror: '中科大镜像'),
+          SourceInfo(id: 'spark', name: '星火应用商店', icon: '🔥', mirror: '原生国内'),
+          SourceInfo(id: 'linglong', name: '玲珑应用商店', icon: '💎', mirror: '原生国内', available: false),
+          SourceInfo(id: 'appimage', name: 'AppImage 目录', icon: '🖼️', mirror: 'GitHub 镜像'),
+        ];
 
   static Future<SettingsController> load() async {
     final c = SettingsController();
